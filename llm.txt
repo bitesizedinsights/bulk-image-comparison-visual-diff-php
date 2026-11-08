@@ -1,0 +1,43 @@
+# Bulk Image Comparison PHP
+
+> PHP client for bulk image comparison (visual diff, SSIM similarity score, pixel diff) via Apify, returns typed DTOs.
+
+Key facts:
+- Package: `bitesizedinsights/bulk-image-comparison-visual-diff`
+- Install: `composer require bitesizedinsights/bulk-image-comparison-visual-diff`
+- PHP: ^8.3, Guzzle ^7
+- Namespace: `ImageComparison`
+- Entry class: `ImageComparison\Client`
+- Auth: Apify API token, passed as first constructor argument
+
+## Docs
+- [README](https://github.com/bitesizedinsights/bulk-image-comparison-visual-diff-php/blob/master/README.md): usage
+- [Actor](https://apify.com/bite-sized-insights/visual-diff-api): the underlying Apify Actor
+
+## API
+- `Client::__construct(string $apiToken, ?Config $config = null, ?GuzzleHttp\ClientInterface $http = null)`
+- `Client::compare(array $pairs, float $similarityThreshold = 0.98, ?float $maxDiffPercent = null, int $pixelTolerance = 10, ResizeMode $resizeMode = ResizeMode::CandidateToBaseline, int $maxDimension = 1600, Normalization $normalize = Normalization::None, array $ignoreRegions = [], bool $createDiffImage = true): ComparisonResult[]` - $pairs is ImagePair[] (1 to 500), $ignoreRegions is Region[] (max 100); one result per pair in input order
+- `Config(string $apiToken, string $actorId = 'bite-sized-insights/visual-diff-api', string $baseUrl = 'https://api.apify.com/v2', int $timeout = 600, int $requestTimeout = 90)`
+- DTOs (all `final readonly`):
+  - `ImagePair` (input): baseline: string, candidate: string (http(s) URL, data URI or raw base64), label: ?string, ignoreRegions: Region[]; toArray()
+  - `Region`: x: int, y: int, width: int, height: int, changedPixels: ?int; fromArray(), toArray(), getArea(): int
+  - `ImageSize`: width: int, height: int; getPixelCount(): int
+  - `ComparisonResult` (fromArray): index: int, label: ?string, baselineUrl, candidateUrl, baselineInput, candidateInput: ?string, passed: ?bool, ssim: ?float, similarityThreshold: ?float, phashDistance, ahashDistance, dhashDistance, hashBits: ?int, pixelDiffPercent: ?float, changedPixels: ?int, regionCount: ?int, regions: ?Region[], baselineSize, candidateSize, comparedSize: ?ImageSize, diffImageKey, diffImageUrl: ?string, error: ?string; helpers isPassed(), isChanged(), isFailed(), getRegionCount(): int, getLargestRegion(): ?Region
+- Enums:
+  - `ResizeMode`: CandidateToBaseline ('candidate-to-baseline'), None ('none')
+  - `Normalization`: None ('none'), Autocontrast ('autocontrast'), Grayscale ('grayscale')
+- Exceptions:
+  - `Exception\ApiException`: failed run (FAILED, ABORTED, TIMED-OUT), HTTP error, malformed or unexpected response, run timeout, invalid dataset item (message names the index)
+  - `Exception\RateLimitException` (extends ApiException): HTTP 429, `$retryAfter` seconds (default 60)
+- A pair that cannot be compared is returned with `error` set and null scores; it does not throw.
+
+## Example
+```php
+use ImageComparison\Client;
+use ImageComparison\DTO\ImagePair;
+
+$client = new Client(getenv('APIFY_API_TOKEN'));
+[$result] = $client->compare([new ImagePair('https://example.com/before.png', 'https://example.com/after.png')]);
+
+echo $result->isPassed() ? 'same' : "changed, SSIM {$result->ssim}", "\n";
+```
