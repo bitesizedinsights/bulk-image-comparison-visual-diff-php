@@ -1,0 +1,11 @@
+{
+    "index": 2,
+    "label": "Pricing page",
+    "passed": true,
+    "ssim": 0.9996,
+    "phash_distance": 0,
+    "pixel_diff_percent": 0.0,
+    "region_count": 0,
+    "regions": [],
+    "error": null
+}

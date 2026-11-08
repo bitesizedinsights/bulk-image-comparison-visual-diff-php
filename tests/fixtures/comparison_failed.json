@@ -1,0 +1,14 @@
+{
+    "index": 3,
+    "label": "Broken link",
+    "baseline_url": "https://example.com/before.png",
+    "candidate_url": "https://example.com/missing.png",
+    "passed": null,
+    "ssim": null,
+    "phash_distance": null,
+    "pixel_diff_percent": null,
+    "region_count": null,
+    "regions": null,
+    "diff_image_url": null,
+    "error": "Download failed with HTTP 404"
+}
