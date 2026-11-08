@@ -1,0 +1,69 @@
+{
+    "name": "bitesizedinsights/bulk-image-comparison-visual-diff",
+    "description": "Bulk image comparison PHP client: visual diff, SSIM similarity score and pixel diff via Apify.",
+    "type": "library",
+    "license": "MIT",
+    "keywords": [
+        "image comparison",
+        "visual diff",
+        "image diff",
+        "ssim",
+        "similarity score",
+        "pixel diff",
+        "visual regression testing",
+        "perceptual hash",
+        "image similarity",
+        "php",
+        "apify",
+        "api client"
+    ],
+    "homepage": "https://github.com/bitesizedinsights/bulk-image-comparison-visual-diff-php",
+    "support": {
+        "issues": "https://github.com/bitesizedinsights/bulk-image-comparison-visual-diff-php/issues",
+        "source": "https://github.com/bitesizedinsights/bulk-image-comparison-visual-diff-php"
+    },
+    "authors": [
+        {
+            "name": "bite-sized-insights",
+            "homepage": "https://apify.com/bite-sized-insights"
+        }
+    ],
+    "minimum-stability": "stable",
+    "prefer-stable": true,
+    "require": {
+        "php": "^8.3",
+        "guzzlehttp/guzzle": "^7.0"
+    },
+    "require-dev": {
+        "laravel/pint": "^1.0",
+        "pestphp/pest": "^4.0",
+        "phpstan/phpstan": "^2.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "ImageComparison\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "ImageComparison\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "test": "pest",
+        "cs": "pint --test",
+        "cs:fix": "pint",
+        "analyse": "phpstan analyse --memory-limit=1G",
+        "check": [
+            "@cs",
+            "@analyse",
+            "@test"
+        ]
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
+    }
+}
