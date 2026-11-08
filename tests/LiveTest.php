@@ -63,7 +63,7 @@ test('live: compares a real image pair', function () {
     $token = liveToken();
     assert($token !== null);
 
-    $client = new Client($token, new Config(apiToken: $token, timeout: 600));
+    $client = (new Client(new Config(timeout: 600)))->setApifyKey($token);
 
     $result = $client->compare(
         pairs: [new ImagePair(LIVE_BASELINE_URL, LIVE_CANDIDATE_URL, 'Apollo 17')],

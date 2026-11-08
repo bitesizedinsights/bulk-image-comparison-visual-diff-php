@@ -9,7 +9,7 @@ use ImageComparison\DTO\ImagePair;
 
 $apiToken = getenv('APIFY_API_TOKEN') ?: getenv('APIFY_TOKEN') ?: 'your_apify_api_token';
 
-$client = new Client($apiToken);
+$client = (new Client)->setApifyKey($apiToken);
 
 // Screenshots of the same pages before and after a deploy, uploaded to public URLs
 $pages = ['home', 'pricing', 'checkout'];

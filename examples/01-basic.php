@@ -9,7 +9,7 @@ use ImageComparison\DTO\ImagePair;
 
 $apiToken = getenv('APIFY_API_TOKEN') ?: getenv('APIFY_TOKEN') ?: 'your_apify_api_token';
 
-$client = new Client($apiToken);
+$client = (new Client)->setApifyKey($apiToken);
 
 $results = $client->compare([
     new ImagePair('https://example.com/before.png', 'https://example.com/after.png', 'Home page'),

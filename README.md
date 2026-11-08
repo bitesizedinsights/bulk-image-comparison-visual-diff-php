@@ -25,7 +25,7 @@ use ImageComparison\DTO\ImagePair;
 
 $apiToken = getenv('APIFY_API_TOKEN') ?: getenv('APIFY_TOKEN') ?: 'your_apify_api_token';
 
-$client = new Client($apiToken);
+$client = (new Client())->setApifyKey($apiToken);
 
 $results = $client->compare([
     new ImagePair('https://example.com/before.png', 'https://example.com/after.png', 'Home page'),
@@ -48,6 +48,8 @@ foreach ($results as $result) {
     );
 }
 ```
+
+The API key is set with `setApifyKey()`. If you skip it, the client reads `APIFY_API_TOKEN` or `APIFY_TOKEN` from the environment and throws `MissingApiKeyException` on the first API call when neither is set.
 
 You need an Apify account ([sign up](https://console.apify.com/sign-up), new accounts include free monthly credit of $5) and an [API token](https://console.apify.com/account/integrations). Comparing images costs from $0.60 per 1,000 pairs, see [Pricing](#pricing-cost-per-image-pair).
 
@@ -152,11 +154,10 @@ Helpers: `isPassed()`, `isChanged()`, `isFailed()`, `getRegionCount()`, `getLarg
 ```php
 use ImageComparison\Config;
 
-$client = new Client($apiToken, new Config(
-    apiToken: $apiToken,
+$client = (new Client(new Config(
     timeout: 900,        // seconds to wait for the run, default 600
     requestTimeout: 90,  // seconds per HTTP request, default 90
-));
+)))->setApifyKey($apiToken);
 ```
 
 `Config` also takes `actorId` (default `bite-sized-insights/visual-diff-api`) and `baseUrl`.

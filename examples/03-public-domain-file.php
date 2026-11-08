@@ -33,7 +33,7 @@ foreach ([$baselineUrl, $candidateUrl] as $url) {
 }
 
 // The Actor reads public URLs, so send the source URLs rather than the local files
-$client = new Client($apiToken);
+$client = (new Client)->setApifyKey($apiToken);
 [$result] = $client->compare([new ImagePair($baselineUrl, $candidateUrl, 'Apollo 17')], similarityThreshold: 0.9);
 
 if ($result->isFailed()) {
