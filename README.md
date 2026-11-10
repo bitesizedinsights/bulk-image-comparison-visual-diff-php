@@ -162,16 +162,31 @@ $client = (new Client(new Config(
 
 `Config` also takes `actorId` (default `bite-sized-insights/visual-diff-api`) and `baseUrl`.
 
+## Retries and Backoff
+
+Failed requests are retried automatically, by default up to 3 times with exponential backoff (1 s, 2 s, 4 s, each with 50 to 100 percent jitter, at most 30 s):
+
+- **Rate limits (429):** retried after at least the `Retry-After` time (seconds or HTTP-date; the backoff delay when the header is missing). If the server asks for more than `retryMaxDelay`, a `RateLimitException` is thrown right away.
+- **Server errors (5xx) and connection failures:** retried for reading results and polling.
+- **Starting a run:** only retried after a 429 or a failed connection. After a 5xx or a timeout the run may already exist, and a repeat would be billed twice, so the error is thrown instead.
+- **Other errors (4xx):** never retried.
+
+```php
+$client = (new Client(new Config(maxRetries: 5, retryBaseDelay: 2.0, retryMaxDelay: 60.0)))->setApifyKey($apiToken);
+// new Config(maxRetries: 0) turns retrying off
+```
+
 ## Error Handling for Failed Comparisons
 
 - A pair that cannot be compared (unreachable URL, invalid base64, not an image, file too large) does not throw. It comes back with `error` set and no scores.
 - `ImageComparison\Exception\ApiException` covers failed runs, HTTP errors, invalid responses and a run that exceeds `Config::$timeout`.
-- `ImageComparison\Exception\RateLimitException` (extends `ApiException`) is thrown on HTTP 429 and exposes `$retryAfter` in seconds.
+- `ImageComparison\Exception\RateLimitException` (extends `ApiException`) is thrown on HTTP 429 once the retries are used up (or at once when `Retry-After` exceeds `retryMaxDelay`) and exposes `$retryAfter` in seconds.
 
 ```php
 try {
     $results = $client->compare($pairs);
 } catch (RateLimitException $e) {
+    // Automatic retries are already used up: wait, then try again later.
     sleep($e->retryAfter);
 } catch (ApiException $e) {
     echo $e->getMessage();
