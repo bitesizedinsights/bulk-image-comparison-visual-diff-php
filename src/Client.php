@@ -21,6 +21,15 @@ use JsonException;
 
 final class Client
 {
+    private const MIN_PAIRS = 1;
+
+    private const MAX_PAIRS = 500;
+
+    private const MAX_IGNORE_REGIONS = 100;
+
+    /** Largest x, y, width or height the Actor accepts for an ignore region. */
+    private const MAX_REGION_VALUE = 100_000;
+
     private const FAILED_STATUSES = ['FAILED', 'ABORTED', 'TIMED-OUT'];
 
     private const RUNNING_STATUSES = ['READY', 'RUNNING'];
@@ -73,6 +82,7 @@ final class Client
      * @param  bool  $createDiffImage  Also return a public link to a PNG overlay of the changes.
      * @return list<ComparisonResult>
      *
+     * @throws InvalidArgumentException When an argument violates the Actor's input limits, before any request.
      * @throws ApiException
      * @throws RateLimitException
      */
@@ -87,6 +97,8 @@ final class Client
         array $ignoreRegions = [],
         bool $createDiffImage = true,
     ): array {
+        $this->validate($pairs, $similarityThreshold, $maxDiffPercent, $pixelTolerance, $maxDimension, $ignoreRegions);
+
         $input = [
             'pairs' => array_map(static fn (ImagePair $pair): array => $pair->toArray(), $pairs),
             'similarityThreshold' => $similarityThreshold,
@@ -109,6 +121,99 @@ final class Client
         $run = $this->awaitRun($run);
 
         return $this->fetchResults($this->datasetId($run));
+    }
+
+    /**
+     * Mirror the Actor's input schema limits so mistakes surface before a run is started.
+     *
+     * @param  array<mixed>  $pairs
+     * @param  array<mixed>  $ignoreRegions
+     *
+     * @throws InvalidArgumentException
+     */
+    private function validate(
+        array $pairs,
+        float $similarityThreshold,
+        ?float $maxDiffPercent,
+        int $pixelTolerance,
+        int $maxDimension,
+        array $ignoreRegions,
+    ): void {
+        $count = count($pairs);
+
+        if ($count < self::MIN_PAIRS || $count > self::MAX_PAIRS) {
+            throw new InvalidArgumentException(
+                'pairs must contain between '.self::MIN_PAIRS.' and '.self::MAX_PAIRS." image pairs, got {$count}."
+            );
+        }
+
+        if (! is_finite($similarityThreshold) || $similarityThreshold < 0 || $similarityThreshold > 1) {
+            throw new InvalidArgumentException(
+                "similarityThreshold must be between 0 and 1, got {$similarityThreshold}."
+            );
+        }
+
+        if ($maxDiffPercent !== null
+            && (! is_finite($maxDiffPercent) || $maxDiffPercent < 0 || $maxDiffPercent > 100)) {
+            throw new InvalidArgumentException("maxDiffPercent must be between 0 and 100, got {$maxDiffPercent}.");
+        }
+
+        if ($pixelTolerance < 0 || $pixelTolerance > 255) {
+            throw new InvalidArgumentException("pixelTolerance must be between 0 and 255, got {$pixelTolerance}.");
+        }
+
+        if ($maxDimension < 16 || $maxDimension > 4000) {
+            throw new InvalidArgumentException("maxDimension must be between 16 and 4000, got {$maxDimension}.");
+        }
+
+        $this->validateRegions($ignoreRegions, 'ignoreRegions');
+        $runRegions = count($ignoreRegions);
+
+        foreach (array_values($pairs) as $i => $pair) {
+            if (! $pair instanceof ImagePair) {
+                throw new InvalidArgumentException("pairs[{$i}] must be an ImagePair.");
+            }
+
+            $this->validateRegions($pair->ignoreRegions, "pairs[{$i}].ignoreRegions");
+            $total = $runRegions + count($pair->ignoreRegions);
+
+            if ($total > self::MAX_IGNORE_REGIONS) {
+                throw new InvalidArgumentException(
+                    "pairs[{$i}] has {$total} ignore regions (run level plus pair level), "
+                    .'at most '.self::MAX_IGNORE_REGIONS.' are allowed.'
+                );
+            }
+        }
+    }
+
+    /**
+     * @param  array<mixed>  $regions
+     *
+     * @throws InvalidArgumentException
+     */
+    private function validateRegions(array $regions, string $name): void
+    {
+        if (count($regions) > self::MAX_IGNORE_REGIONS) {
+            throw new InvalidArgumentException(
+                "{$name} may contain at most ".self::MAX_IGNORE_REGIONS.' regions, got '.count($regions).'.'
+            );
+        }
+
+        foreach (array_values($regions) as $i => $region) {
+            if (! $region instanceof Region) {
+                throw new InvalidArgumentException("{$name}[{$i}] must be a Region.");
+            }
+
+            $values = ['x' => $region->x, 'y' => $region->y, 'width' => $region->width, 'height' => $region->height];
+
+            foreach ($values as $key => $value) {
+                if ($value < 0 || $value > self::MAX_REGION_VALUE) {
+                    throw new InvalidArgumentException(
+                        "{$name}[{$i}].{$key} must be between 0 and ".self::MAX_REGION_VALUE.", got {$value}."
+                    );
+                }
+            }
+        }
     }
 
     /**

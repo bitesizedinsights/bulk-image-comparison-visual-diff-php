@@ -110,6 +110,8 @@ $results = $client->compare(
 
 `compare()` starts one Actor run for all pairs, waits for it to finish and returns one `ComparisonResult` per pair, in input order.
 
+Input is validated before any request is made: an out-of-range argument throws an `InvalidArgumentException` naming the argument and its limit. Checked are the pair count (1 to 500), `similarityThreshold` (0 to 1), `maxDiffPercent` (0 to 100), `pixelTolerance` (0 to 255), `maxDimension` (16 to 4000), ignore region coordinates and sizes (0 to 100000) and the ignore region cap of 100 per pair, run level and pair level combined. Enums are typed, and labels longer than 200 characters are truncated by the Actor, not rejected.
+
 | Parameter | Type | Default | Description |
 |---|---|---|---|
 | `pairs` | `list<ImagePair>` | required | 1 to 500 pairs |

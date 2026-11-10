@@ -437,3 +437,64 @@ test('4xx other than 429 is never retried', function () {
     expect(fn () => $client->compare([samplePair()]))->toThrow(ApiException::class, 'status 401')
         ->and($history)->toHaveCount(1);
 });
+
+test('compare rejects invalid input before any request', function (array $args, string $message) {
+    $history = [];
+    $client = makeClient([], $history);
+
+    expect(fn () => $client->compare(...$args))->toThrow(InvalidArgumentException::class, $message);
+    expect($history)->toBe([]);
+})->with([
+    'no pairs' => [['pairs' => []], 'between 1 and 500'],
+    'too many pairs' => [['pairs' => array_fill(0, 501, new ImagePair('a', 'b'))], 'got 501'],
+    'non pair' => [['pairs' => ['x']], 'pairs[0] must be an ImagePair'],
+    'threshold high' => [['pairs' => [new ImagePair('a', 'b')], 'similarityThreshold' => 1.5], 'similarityThreshold'],
+    'threshold low' => [['pairs' => [new ImagePair('a', 'b')], 'similarityThreshold' => -0.1], 'similarityThreshold'],
+    'diff percent' => [['pairs' => [new ImagePair('a', 'b')], 'maxDiffPercent' => 100.5], 'maxDiffPercent'],
+    'tolerance' => [['pairs' => [new ImagePair('a', 'b')], 'pixelTolerance' => 256], 'pixelTolerance'],
+    'dimension low' => [['pairs' => [new ImagePair('a', 'b')], 'maxDimension' => 15], 'maxDimension'],
+    'dimension high' => [['pairs' => [new ImagePair('a', 'b')], 'maxDimension' => 4001], 'maxDimension'],
+    'run regions' => [
+        ['pairs' => [new ImagePair('a', 'b')], 'ignoreRegions' => array_fill(0, 101, new Region(0, 0, 1, 1))],
+        'ignoreRegions may contain at most 100',
+    ],
+    'pair regions' => [
+        ['pairs' => [new ImagePair('a', 'b', null, array_fill(0, 101, new Region(0, 0, 1, 1)))]],
+        'pairs[0].ignoreRegions may contain at most 100',
+    ],
+    'combined regions' => [
+        [
+            'pairs' => [
+                new ImagePair('a', 'b'),
+                new ImagePair('a', 'b', null, array_fill(0, 51, new Region(0, 0, 1, 1))),
+            ],
+            'ignoreRegions' => array_fill(0, 50, new Region(0, 0, 1, 1)),
+        ],
+        'pairs[1] has 101 ignore regions',
+    ],
+    'negative region' => [
+        ['pairs' => [new ImagePair('a', 'b', null, [new Region(-1, 0, 1, 1)])]],
+        'pairs[0].ignoreRegions[0].x must be between 0 and 100000',
+    ],
+    'huge region' => [
+        ['pairs' => [new ImagePair('a', 'b')], 'ignoreRegions' => [new Region(0, 0, 1, 100_001)]],
+        'ignoreRegions[0].height',
+    ],
+]);
+
+test('compare accepts the documented limits', function () {
+    $history = [];
+    $client = makeClient([runResponse(), jsonResponse(200, [])], $history);
+    $pairs = array_fill(0, 500, new ImagePair('a', 'b', null, array_fill(0, 50, new Region(0, 0, 100_000, 0))));
+
+    $client->compare(
+        pairs: $pairs,
+        similarityThreshold: 1.0,
+        maxDiffPercent: 0.0,
+        pixelTolerance: 255,
+        maxDimension: 16,
+        ignoreRegions: array_fill(0, 50, new Region(0, 0, 1, 1)),
+    );
+
+    expect($history)->toHaveCount(2);
+});
