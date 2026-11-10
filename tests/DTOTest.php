@@ -119,3 +119,31 @@ test('image pair converts to input', function () {
 test('image pair omits empty options', function () {
     expect((new ImagePair('a', 'b'))->toArray())->toBe(['baseline' => 'a', 'candidate' => 'b']);
 });
+
+test('comparison result round-trips through toArray', function () {
+    foreach (['comparison_changed', 'comparison_passed', 'comparison_failed', 'comparison_minimal'] as $name) {
+        $result = ComparisonResult::fromArray(loadFixture($name));
+
+        expect(ComparisonResult::fromArray($result->toArray()))->toEqual($result)
+            ->and(ComparisonResult::fromArray(json_decode(json_encode($result, JSON_THROW_ON_ERROR), true)))
+            ->toEqual($result);
+    }
+});
+
+test('comparison result serializes regions and sizes in Actor field names', function () {
+    $data = ComparisonResult::fromArray(loadFixture('comparison_changed'))->toArray();
+
+    expect($data['baseline_size'])->toBe(['width' => 1280, 'height' => 800])
+        ->and($data['regions'][0]['changed_pixels'])->toBe(8120)
+        ->and($data['diff_image_key'])->toBe('diff-00001.png');
+});
+
+test('region and image size round-trip', function () {
+    $region = new Region(1, 2, 3, 4, 12);
+    $size = new ImageSize(10, 20);
+
+    expect(Region::fromArray($region->toArray()))->toEqual($region)
+        ->and(ImageSize::fromArray($size->toArray()))->toEqual($size)
+        ->and(json_encode($size))->toBe('{"width":10,"height":20}')
+        ->and((new Region(1, 2, 3, 4))->toArray())->toBe(['x' => 1, 'y' => 2, 'width' => 3, 'height' => 4]);
+});

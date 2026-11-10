@@ -6,7 +6,7 @@ namespace ImageComparison\DTO;
 
 use ImageComparison\Support\Value;
 
-final readonly class ImageSize
+final readonly class ImageSize implements \JsonSerializable
 {
     public function __construct(
         public int $width,
@@ -20,6 +20,18 @@ final readonly class ImageSize
             width: Value::int($data, 'width'),
             height: Value::int($data, 'height'),
         );
+    }
+
+    /** @return array{width: int, height: int} */
+    public function toArray(): array
+    {
+        return ['width' => $this->width, 'height' => $this->height];
+    }
+
+    /** @return array{width: int, height: int} */
+    public function jsonSerialize(): array
+    {
+        return $this->toArray();
     }
 
     public function getPixelCount(): int

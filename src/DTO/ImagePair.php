@@ -7,7 +7,7 @@ namespace ImageComparison\DTO;
 /**
  * One baseline and candidate image to compare.
  */
-final readonly class ImagePair
+final readonly class ImagePair implements \JsonSerializable
 {
     /**
      * @param  string  $baseline  Reference image: http(s) URL, data URI or raw base64, 25 MB max.
@@ -36,5 +36,11 @@ final readonly class ImagePair
         }
 
         return $data;
+    }
+
+    /** @return array<string, mixed> */
+    public function jsonSerialize(): array
+    {
+        return $this->toArray();
     }
 }

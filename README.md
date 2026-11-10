@@ -146,6 +146,8 @@ An `ImagePair` takes `baseline` and `candidate` (http(s) URL, data URI or raw ba
 
 Helpers: `isPassed()`, `isChanged()`, `isFailed()`, `getRegionCount()`, `getLargestRegion()`. A `Region` has `x`, `y`, `width`, `height`, `changedPixels` and `getArea()`.
 
+All DTOs implement `JsonSerializable` and have `toArray()` in the Actor's snake_case field names (`baseline_size`, `changed_pixels`, ...), so you can store results as JSON and restore them with `ComparisonResult::fromArray()`: `json_encode($result)` and `ComparisonResult::fromArray($result->toArray())` both round-trip.
+
 ## Resize Mode and Normalization Enums
 
 - `ResizeMode`: `CandidateToBaseline` (`candidate-to-baseline`), `None` (`none`)

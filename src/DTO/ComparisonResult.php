@@ -6,7 +6,7 @@ namespace ImageComparison\DTO;
 
 use ImageComparison\Support\Value;
 
-final readonly class ComparisonResult
+final readonly class ComparisonResult implements \JsonSerializable
 {
     /**
      * @param  int  $index  1-based position of the pair in the input.
@@ -71,6 +71,48 @@ final readonly class ComparisonResult
             diffImageUrl: Value::nullableString($data, 'diff_image_url'),
             error: Value::nullableString($data, 'error'),
         );
+    }
+
+    /**
+     * All fields in the Actor's snake_case names, so `fromArray($result->toArray())` round-trips.
+     *
+     * @return array<string, mixed>
+     */
+    public function toArray(): array
+    {
+        return [
+            'index' => $this->index,
+            'label' => $this->label,
+            'baseline_url' => $this->baselineUrl,
+            'candidate_url' => $this->candidateUrl,
+            'baseline_input' => $this->baselineInput,
+            'candidate_input' => $this->candidateInput,
+            'passed' => $this->passed,
+            'ssim' => $this->ssim,
+            'similarity_threshold' => $this->similarityThreshold,
+            'phash_distance' => $this->phashDistance,
+            'ahash_distance' => $this->ahashDistance,
+            'dhash_distance' => $this->dhashDistance,
+            'hash_bits' => $this->hashBits,
+            'pixel_diff_percent' => $this->pixelDiffPercent,
+            'changed_pixels' => $this->changedPixels,
+            'region_count' => $this->regionCount,
+            'regions' => $this->regions === null
+                ? null
+                : array_map(static fn (Region $r): array => $r->toArray(), $this->regions),
+            'baseline_size' => $this->baselineSize?->toArray(),
+            'candidate_size' => $this->candidateSize?->toArray(),
+            'compared_size' => $this->comparedSize?->toArray(),
+            'diff_image_key' => $this->diffImageKey,
+            'diff_image_url' => $this->diffImageUrl,
+            'error' => $this->error,
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    public function jsonSerialize(): array
+    {
+        return $this->toArray();
     }
 
     /** The pair could not be compared; no scores are available. */

@@ -22,9 +22,9 @@ Key facts:
 - `Config(string $actorId = 'bite-sized-insights/visual-diff-api', string $baseUrl = 'https://api.apify.com/v2', int $timeout = 600, int $requestTimeout = 90, int $maxRetries = 3, float $retryBaseDelay = 1.0, float $retryMaxDelay = 30.0)`; retries 429/5xx/connection failures with exponential backoff, jitter and Retry-After (seconds or HTTP-date); the run-start POST is only retried after a 429 or failed connection
 - DTOs (all `final readonly`):
   - `ImagePair` (input): baseline: string, candidate: string (http(s) URL, data URI or raw base64), label: ?string, ignoreRegions: Region[]; toArray()
-  - `Region`: x: int, y: int, width: int, height: int, changedPixels: ?int; fromArray(), toArray(), getArea(): int
-  - `ImageSize`: width: int, height: int; getPixelCount(): int
-  - `ComparisonResult` (fromArray): index: int, label: ?string, baselineUrl, candidateUrl, baselineInput, candidateInput: ?string, passed: ?bool, ssim: ?float, similarityThreshold: ?float, phashDistance, ahashDistance, dhashDistance, hashBits: ?int, pixelDiffPercent: ?float, changedPixels: ?int, regionCount: ?int, regions: ?Region[], baselineSize, candidateSize, comparedSize: ?ImageSize, diffImageKey, diffImageUrl: ?string, error: ?string; helpers isPassed(), isChanged(), isFailed(), getRegionCount(): int, getLargestRegion(): ?Region
+  - `Region`: x: int, y: int, width: int, height: int, changedPixels: ?int; fromArray(), toArray(), jsonSerialize(), getArea(): int
+  - `ImageSize`: width: int, height: int; fromArray(), toArray(), getPixelCount(): int
+  - `ComparisonResult` (fromArray(), toArray(), JsonSerializable; Actor snake_case keys, round-trips): index: int, label: ?string, baselineUrl, candidateUrl, baselineInput, candidateInput: ?string, passed: ?bool, ssim: ?float, similarityThreshold: ?float, phashDistance, ahashDistance, dhashDistance, hashBits: ?int, pixelDiffPercent: ?float, changedPixels: ?int, regionCount: ?int, regions: ?Region[], baselineSize, candidateSize, comparedSize: ?ImageSize, diffImageKey, diffImageUrl: ?string, error: ?string; helpers isPassed(), isChanged(), isFailed(), getRegionCount(): int, getLargestRegion(): ?Region
 - Enums:
   - `ResizeMode`: CandidateToBaseline ('candidate-to-baseline'), None ('none')
   - `Normalization`: None ('none'), Autocontrast ('autocontrast'), Grayscale ('grayscale')

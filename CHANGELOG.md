@@ -11,6 +11,7 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Added
 
+- Serialization: `ComparisonResult`, `Region`, `ImageSize` and `ImagePair` implement `JsonSerializable` and have `toArray()` in the Actor's field names, so `ComparisonResult::fromArray($result->toArray())` round-trips. `Region::toArray()` now includes `changed_pixels` when set.
 - Client-side input validation: `Client::compare()` throws an `InvalidArgumentException` with a clear message, before starting a run, for a pair count outside 1 to 500, out-of-range `similarityThreshold`, `maxDiffPercent`, `pixelTolerance` or `maxDimension`, invalid ignore regions and more than 100 ignore regions per pair (run level plus pair level combined).
 - Automatic retrying with exponential backoff and jitter (`Config::$maxRetries`, `$retryBaseDelay`, `$retryMaxDelay`): rate limits honour `Retry-After`, 5xx and connection failures are retried, and starting a run is not repeated after a 5xx or timeout.
 - `Client::setApifyKey()` and `MissingApiKeyException`, thrown on the first API call when no key is available.

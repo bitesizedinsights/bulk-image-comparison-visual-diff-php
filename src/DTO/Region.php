@@ -9,7 +9,7 @@ use ImageComparison\Support\Value;
 /**
  * A rectangle in baseline pixels: an area to ignore (input) or a changed area (output).
  */
-final readonly class Region
+final readonly class Region implements \JsonSerializable
 {
     public function __construct(
         public int $x,
@@ -31,10 +31,26 @@ final readonly class Region
         );
     }
 
-    /** @return array{x: int, y: int, width: int, height: int} */
+    /**
+     * `changed_pixels` is only present on regions returned by the Actor, so ignore-region input stays x/y/width/height.
+     *
+     * @return array{x: int, y: int, width: int, height: int, changed_pixels?: int}
+     */
     public function toArray(): array
     {
-        return ['x' => $this->x, 'y' => $this->y, 'width' => $this->width, 'height' => $this->height];
+        $data = ['x' => $this->x, 'y' => $this->y, 'width' => $this->width, 'height' => $this->height];
+
+        if ($this->changedPixels !== null) {
+            $data['changed_pixels'] = $this->changedPixels;
+        }
+
+        return $data;
+    }
+
+    /** @return array{x: int, y: int, width: int, height: int, changed_pixels?: int} */
+    public function jsonSerialize(): array
+    {
+        return $this->toArray();
     }
 
     /** Area of the rectangle in pixels. */
