@@ -18,6 +18,7 @@ use ImageComparison\Exception\MissingApiKeyException;
 use ImageComparison\Exception\RateLimitException;
 use InvalidArgumentException;
 use JsonException;
+use Throwable;
 
 final class Client
 {
@@ -217,6 +218,42 @@ final class Client
     }
 
     /**
+     * Aborts an Apify run (POST /actor-runs/{id}/abort). Safe to call for a run that already finished.
+     *
+     * @throws ApiException
+     * @throws RateLimitException
+     * @throws MissingApiKeyException
+     */
+    public function abort(string $runId): void
+    {
+        $this->request('POST', '/actor-runs/'.rawurlencode($runId).'/abort');
+    }
+
+    /**
+     * Best-effort abort after our own deadline expired: one short request, no retries, never throws.
+     */
+    private function tryAbort(string $runId): bool
+    {
+        try {
+            $this->http->request(
+                'POST',
+                rtrim($this->config->baseUrl, '/').'/actor-runs/'.rawurlencode($runId).'/abort',
+                [
+                    'headers' => [
+                        'Authorization' => 'Bearer '.$this->resolveApiKey(),
+                        'Accept' => 'application/json',
+                    ],
+                    'timeout' => min(10, $this->config->requestTimeout),
+                ],
+            );
+
+            return true;
+        } catch (Throwable) {
+            return false;
+        }
+    }
+
+    /**
      * @param  array<string, mixed>  $input
      * @return array<mixed>
      */
@@ -253,14 +290,19 @@ final class Client
 
             $remaining = $deadline - time();
 
-            if ($remaining <= 0) {
-                throw new ApiException("Actor run did not finish within {$this->config->timeout} seconds");
-            }
-
             $runId = $run['id'] ?? null;
 
             if (! is_string($runId)) {
                 throw new ApiException('Invalid API response: missing run ID');
+            }
+
+            if ($remaining <= 0) {
+                $message = "Actor run did not finish within {$this->config->timeout} seconds";
+
+                throw new ApiException(
+                    $this->tryAbort($runId) ? "{$message} and was aborted" : $message,
+                    runId: $runId,
+                );
             }
 
             $result = $this->request('GET', "/actor-runs/{$runId}", [

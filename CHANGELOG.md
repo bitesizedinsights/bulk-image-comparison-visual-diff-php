@@ -4,6 +4,12 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- When `Config::$timeout` expires while waiting for a run, the client now aborts that run (best effort, one short request, errors ignored) so it does not keep running and billing. The `ApiException` says "and was aborted" only if the abort succeeded.
+- `ApiException::$runId` carries the run ID of a timed-out run.
+- `Client::abort(string $runId)` aborts a run explicitly.
+
 ## [0.2.0] - 2026-11-15
 
 ### Changed

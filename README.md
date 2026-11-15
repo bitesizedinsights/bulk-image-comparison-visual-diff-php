@@ -164,6 +164,8 @@ $client = (new Client(new Config(
 )))->setApifyKey($apiToken);
 ```
 
+When `timeout` expires while waiting, the client aborts the run (best effort, one short request, failures ignored) so it does not keep billing, then throws an `ApiException` with `$runId` set; the message ends with "and was aborted" only if the abort succeeded. Failed runs, rate limits and connection errors never trigger an abort. You can also call `$client->abort($runId)` yourself.
+
 `Config` also takes `actorId` (default `bite-sized-insights/visual-diff-api`) and `baseUrl`.
 
 ## Retries and Backoff
@@ -183,7 +185,7 @@ $client = (new Client(new Config(maxRetries: 5, retryBaseDelay: 2.0, retryMaxDel
 ## Error Handling for Failed Comparisons
 
 - A pair that cannot be compared (unreachable URL, invalid base64, not an image, file too large) does not throw. It comes back with `error` set and no scores.
-- `ImageComparison\Exception\ApiException` covers failed runs, HTTP errors, invalid responses and a run that exceeds `Config::$timeout`.
+- `ImageComparison\Exception\ApiException` covers failed runs, HTTP errors, invalid responses and a run that exceeds `Config::$timeout` (the run is aborted and `$runId` is set).
 - `ImageComparison\Exception\RateLimitException` (extends `ApiException`) is thrown on HTTP 429 once the retries are used up (or at once when `Retry-After` exceeds `retryMaxDelay`) and exposes `$retryAfter` in seconds.
 
 ```php

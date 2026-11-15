@@ -141,6 +141,67 @@ test('throws when the run does not finish in time', function () {
         ->toThrow(ApiException::class, 'did not finish within 0 seconds');
 });
 
+test('aborts the run when the deadline expires', function () {
+    $history = [];
+    $client = makeClient([runResponse('RUNNING', 'run42'), jsonResponse(200, [])], $history, new Config(timeout: 0));
+
+    try {
+        $client->compare([samplePair()]);
+        $this->fail('Expected ApiException');
+    } catch (ApiException $e) {
+        expect($e->getMessage())->toBe('Actor run did not finish within 0 seconds and was aborted')
+            ->and($e->runId)->toBe('run42');
+    }
+
+    expect($history)->toHaveCount(2);
+    $abort = $history[1]['request'];
+    expect($abort->getMethod())->toBe('POST')
+        ->and($abort->getUri()->getPath())->toBe('/v2/actor-runs/run42/abort')
+        ->and($abort->getHeaderLine('Authorization'))->toBe('Bearer test-token');
+});
+
+test('a failing abort still throws the original timeout error', function () {
+    $history = [];
+    $client = makeClient([
+        runResponse('RUNNING', 'run42'),
+        jsonResponse(500, []),
+    ], $history, new Config(timeout: 0));
+
+    try {
+        $client->compare([samplePair()]);
+        $this->fail('Expected ApiException');
+    } catch (ApiException $e) {
+        expect($e->getMessage())->toBe('Actor run did not finish within 0 seconds')
+            ->and($e->runId)->toBe('run42');
+    }
+
+    expect($history)->toHaveCount(2);
+});
+
+test('no abort on success or failed runs', function () {
+    $history = [];
+    $client = makeClient([runResponse(), jsonResponse(200, [])], $history, new Config(timeout: 0));
+    $client->compare([samplePair()]);
+    expect($history)->toHaveCount(2);
+
+    $history = [];
+    $client = makeClient([runResponse('FAILED')], $history, new Config(timeout: 0));
+    expect(fn () => $client->compare([samplePair()]))->toThrow(ApiException::class, 'status FAILED')
+        ->and($history)->toHaveCount(1);
+});
+
+test('abort() posts to the abort endpoint', function () {
+    $history = [];
+    $client = makeClient([runResponse('ABORTED', 'run7')], $history);
+
+    $client->abort('run7');
+
+    expect($history)->toHaveCount(1)
+        ->and($history[0]['request']->getMethod())->toBe('POST')
+        ->and($history[0]['request']->getUri()->getPath())->toBe('/v2/actor-runs/run7/abort')
+        ->and($history[0]['request']->getHeaderLine('Authorization'))->toBe('Bearer test-token');
+});
+
 test('throws on failed run status', function (string $status) {
     $client = makeClient([runResponse($status)]);
 

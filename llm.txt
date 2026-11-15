@@ -19,6 +19,7 @@ Key facts:
 - `Client::setApifyKey(string $apiKey): static` - sets the Apify API key; without it `APIFY_API_TOKEN` or `APIFY_TOKEN` is read from the environment, and `MissingApiKeyException` is thrown on the first API call if neither is set
 - `Client::compare(array $pairs, float $similarityThreshold = 0.98, ?float $maxDiffPercent = null, int $pixelTolerance = 10, ResizeMode $resizeMode = ResizeMode::CandidateToBaseline, int $maxDimension = 1600, Normalization $normalize = Normalization::None, array $ignoreRegions = [], bool $createDiffImage = true): ComparisonResult[]` - $pairs is ImagePair[] (1 to 500), $ignoreRegions is Region[] (max 100); one result per pair in input order
   - Validates input before any request and throws InvalidArgumentException: pairs 1-500, similarityThreshold 0-1, maxDiffPercent 0-100, pixelTolerance 0-255, maxDimension 16-4000, region x/y/width/height 0-100000, ignore regions max 100 per pair (run level plus pair level combined)
+- `Client::abort(string $runId): void` - POST /actor-runs/{id}/abort
 - `Config(string $actorId = 'bite-sized-insights/visual-diff-api', string $baseUrl = 'https://api.apify.com/v2', int $timeout = 600, int $requestTimeout = 90, int $maxRetries = 3, float $retryBaseDelay = 1.0, float $retryMaxDelay = 30.0)`; retries 429/5xx/connection failures with exponential backoff, jitter and Retry-After (seconds or HTTP-date); the run-start POST is only retried after a 429 or failed connection
 - DTOs (all `final readonly`):
   - `ImagePair` (input): baseline: string, candidate: string (http(s) URL, data URI or raw base64), label: ?string, ignoreRegions: Region[]; toArray()
@@ -29,7 +30,7 @@ Key facts:
   - `ResizeMode`: CandidateToBaseline ('candidate-to-baseline'), None ('none')
   - `Normalization`: None ('none'), Autocontrast ('autocontrast'), Grayscale ('grayscale')
 - Exceptions:
-  - `Exception\ApiException`: failed run (FAILED, ABORTED, TIMED-OUT), HTTP error, malformed or unexpected response, run timeout, invalid dataset item (message names the index)
+  - `Exception\ApiException`: failed run (FAILED, ABORTED, TIMED-OUT), HTTP error, malformed or unexpected response, run timeout (the run is aborted best effort, `$runId` is set, message ends with "and was aborted" if the abort succeeded), invalid dataset item (message names the index)
   - `Exception\RateLimitException` (extends ApiException): HTTP 429 after retries are used up (or Retry-After above retryMaxDelay), `$retryAfter` seconds (the backoff delay when the header is missing)
 - A pair that cannot be compared is returned with `error` set and null scores; it does not throw.
 
