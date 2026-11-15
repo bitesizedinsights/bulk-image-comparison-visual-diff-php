@@ -245,6 +245,7 @@ Up to 500 pairs per run (10 on the free plan), 25 MB per image, 36 million pixel
 ## Requirements
 
 - PHP 8.3 or newer
+- Guzzle 7 or 8 (installed automatically)
 - An [Apify API token](https://console.apify.com/account/integrations)
 
 ## Powered by Bulk Image Comparison on Apify

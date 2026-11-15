@@ -5,7 +5,7 @@
 Key facts:
 - Package: `bitesizedinsights/bulk-image-comparison-visual-diff`
 - Install: `composer require bitesizedinsights/bulk-image-comparison-visual-diff`
-- PHP: ^8.3, Guzzle ^7
+- PHP: ^8.3, Guzzle ^7 or ^8
 - Namespace: `ImageComparison`
 - Entry class: `ImageComparison\Client`
 - Auth: Apify API token, set via `Client::setApifyKey()`, falls back to env `APIFY_API_TOKEN` or `APIFY_TOKEN`

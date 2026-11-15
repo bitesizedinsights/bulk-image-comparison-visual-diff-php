@@ -3,7 +3,8 @@
 declare(strict_types=1);
 
 use GuzzleHttp\Exception\ConnectException;
-use GuzzleHttp\Exception\TransferException;
+use GuzzleHttp\Exception\NetworkTimeoutException;
+use GuzzleHttp\Exception\RequestException;
 use GuzzleHttp\Psr7\Request;
 use GuzzleHttp\Psr7\Response;
 use ImageComparison\Client;
@@ -403,12 +404,25 @@ test('starting a run is not repeated after a 5xx', function () {
 
 test('starting a run is not repeated after a timeout', function () {
     $history = [];
-    $timeout = new TransferException('cURL error 28: Operation timed out');
+    $timeout = new RequestException(
+        'cURL error 28: Operation timed out',
+        new Request('POST', 'https://api.apify.com'),
+    );
     $client = makeClient([$timeout, runResponse()], $history, new Config);
 
     expect(fn () => $client->compare([samplePair()]))->toThrow(ApiException::class)
         ->and($history)->toHaveCount(1);
 });
+
+test('starting a run is not repeated after a Guzzle 8 network timeout, which is not a ConnectException', function () {
+    $history = [];
+    $request = new Request('POST', 'https://api.apify.com');
+    $timeout = new NetworkTimeoutException('cURL error 28: Operation timed out', $request);
+    $client = makeClient([$timeout, runResponse()], $history, new Config);
+
+    expect(fn () => $client->compare([samplePair()]))->toThrow(ApiException::class)
+        ->and($history)->toHaveCount(1);
+})->skip(! class_exists(NetworkTimeoutException::class), 'Guzzle 8 only');
 
 test('a failed connection is retried, also when starting a run', function () {
     $sleeps = [];
