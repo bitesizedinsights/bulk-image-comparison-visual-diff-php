@@ -195,6 +195,7 @@ $client = (new Client(new Config(maxRetries: 5, retryBaseDelay: 2.0, retryMaxDel
 
 - A pair that cannot be compared (unreachable URL, invalid base64, not an image, file too large) does not throw. It comes back with `error` set and no scores.
 - `ImageComparison\Exception\ApiException` covers failed runs, HTTP errors, invalid responses and a run that exceeds `Config::$timeout` (the run is aborted and `$runId` is set).
+- For a FAILED, ABORTED or TIMED-OUT run the message is `Actor run ended with status FAILED: <statusMessage>` when the run reports a non-empty `statusMessage` (the Actor's own reason), otherwise just `Actor run ended with status FAILED`. In the message the text has control characters stripped and is capped at 500 characters. Read `$e->statusMessage` (`?string`, capped at 2000 characters, null when unknown) and `$e->runId` (`?string`) to log or branch on the reason; both are also set on a client-side timeout (`statusMessage` is then the last progress message of the run).
 - `ImageComparison\Exception\RateLimitException` (extends `ApiException`) is thrown on HTTP 429 once the retries are used up (or at once when `Retry-After` exceeds `retryMaxDelay`) and exposes `$retryAfter` in seconds.
 
 ```php

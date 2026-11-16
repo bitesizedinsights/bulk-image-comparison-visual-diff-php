@@ -209,6 +209,72 @@ test('throws on failed run status', function (string $status) {
         ->toThrow(ApiException::class, "status {$status}");
 })->with(['FAILED', 'ABORTED', 'TIMED-OUT']);
 
+/** @param  array<string, mixed>  $extra */
+function failedRun(array $extra): Response
+{
+    return jsonResponse(200, ['data' => ['id' => 'run9', 'status' => 'FAILED'] + $extra]);
+}
+
+test('failed run exposes the statusMessage in message and property', function () {
+    $client = makeClient([failedRun(['statusMessage' => 'Target site returned 403'])]);
+
+    try {
+        $client->compare([samplePair()]);
+        $this->fail('Expected ApiException');
+    } catch (ApiException $e) {
+        expect($e->getMessage())->toBe('Actor run ended with status FAILED: Target site returned 403')
+            ->and($e->statusMessage)->toBe('Target site returned 403')
+            ->and($e->runId)->toBe('run9');
+    }
+});
+
+test('failed run without a usable statusMessage keeps the plain message', function (array $extra) {
+    $client = makeClient([failedRun($extra)]);
+
+    try {
+        $client->compare([samplePair()]);
+        $this->fail('Expected ApiException');
+    } catch (ApiException $e) {
+        expect($e->getMessage())->toBe('Actor run ended with status FAILED')
+            ->and($e->statusMessage)->toBeNull();
+    }
+})->with([
+    'missing' => [[]],
+    'empty string' => [['statusMessage' => '']],
+    'blank' => [['statusMessage' => " \n "]],
+    'non-string' => [['statusMessage' => ['x']]],
+    'number' => [['statusMessage' => 5]],
+]);
+
+test('statusMessage is stripped of control characters and capped', function () {
+    $client = makeClient([failedRun(['statusMessage' => "a\nb\x00c".str_repeat('x', 3000)])]);
+
+    try {
+        $client->compare([samplePair()]);
+        $this->fail('Expected ApiException');
+    } catch (ApiException $e) {
+        expect($e->getMessage())->toStartWith('Actor run ended with status FAILED: a b c')
+            ->and(mb_strlen($e->getMessage()))->toBe(mb_strlen('Actor run ended with status FAILED: ') + 500)
+            ->and(mb_strlen((string) $e->statusMessage))->toBe(2000)
+            ->and($e->statusMessage)->not->toMatch('/[\x00-\x1F]/');
+    }
+});
+
+test('timeout exception carries the running statusMessage', function () {
+    $client = makeClient([
+        jsonResponse(201, ['data' => ['id' => 'run9', 'status' => 'RUNNING', 'statusMessage' => 'Comparing 3/10']]),
+        jsonResponse(200, []),
+    ], config: new Config(timeout: 0));
+
+    try {
+        $client->compare([samplePair()]);
+        $this->fail('Expected ApiException');
+    } catch (ApiException $e) {
+        expect($e->statusMessage)->toBe('Comparing 3/10')
+            ->and($e->runId)->toBe('run9');
+    }
+});
+
 test('throws on unknown run status', function () {
     $client = makeClient([runResponse('WEIRD')]);
 

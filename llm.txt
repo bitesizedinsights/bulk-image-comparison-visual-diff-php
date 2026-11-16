@@ -30,7 +30,7 @@ Key facts:
   - `ResizeMode`: CandidateToBaseline ('candidate-to-baseline'), None ('none')
   - `Normalization`: None ('none'), Autocontrast ('autocontrast'), Grayscale ('grayscale')
 - Exceptions:
-  - `Exception\ApiException`: failed run (FAILED, ABORTED, TIMED-OUT), HTTP error, malformed or unexpected response, run timeout (the run is aborted best effort, `$runId` is set, message ends with "and was aborted" if the abort succeeded), invalid dataset item (message names the index)
+  - `Exception\ApiException`: failed run (FAILED, ABORTED, TIMED-OUT), HTTP error, malformed or unexpected response, run timeout (the run is aborted best effort, `$runId` is set, message ends with "and was aborted" if the abort succeeded), invalid dataset item (message names the index). Failed run message: "Actor run ended with status X" plus ": <statusMessage>" when the run has a non-empty string statusMessage (control characters stripped, capped at 500 chars in the message). Properties: `$runId` (?string), `$statusMessage` (?string, raw, capped at 2000 chars, null if unknown; also set on client-side timeout)
   - `Exception\RateLimitException` (extends ApiException): HTTP 429 after retries are used up (or Retry-After above retryMaxDelay), `$retryAfter` seconds (the backoff delay when the header is missing)
 - A pair that cannot be compared is returned with `error` set and null scores; it does not throw.
 
