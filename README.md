@@ -108,7 +108,24 @@ $results = $client->compare(
 );
 ```
 
-`compare()` starts one Actor run for all pairs, waits for it to finish and returns one `ComparisonResult` per pair, in input order.
+`compare()` starts one Actor run for all pairs, waits for it to finish and returns one `ComparisonResult` per processed pair. Each result carries the 1-based `index` of its pair in the input.
+
+Fewer rows than pairs come back on the free plan, in TEST runs, after your spending limit, after a shutdown and for duplicate pairs. A pair that cannot finish in time still gets a row, with an `error` starting with `time_limit`; it is free, so run it again. Use `ResultSet` to find the pairs without a row (`missingIndexes()`, `unprocessed()`, `isComplete()`) and retry them in a second call:
+
+```php
+use ImageComparison\ResultSet;
+
+$results = $client->compare($pairs);
+$set = ResultSet::from($results);
+
+if (! $set->isComplete(count($pairs))) {
+    $missing = $set->missingIndexes(count($pairs)); // for example [11, 12]
+    $retry = $set->unprocessed($pairs);             // those pairs, original array keys kept
+    $results = [...$results, ...$client->compare(array_values($retry))];
+}
+```
+
+Indexes of the second call restart at 1; map them back with the keys of `$retry`.
 
 Input is validated before any request is made: an out-of-range argument throws an `InvalidArgumentException` naming the argument and its limit. Checked are the pair count (1 to 500), `similarityThreshold` (0 to 1), `maxDiffPercent` (0 to 100), `pixelTolerance` (0 to 255), `maxDimension` (16 to 4000), ignore region coordinates and sizes (0 to 100000) and the ignore region cap of 100 per pair, run level and pair level combined. Enums are typed, and labels longer than 200 characters are truncated by the Actor, not rejected.
 

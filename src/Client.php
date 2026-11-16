@@ -71,7 +71,12 @@ final class Client
     }
 
     /**
-     * Compare image pairs and return one result per pair, in input order.
+     * Compare image pairs and return one result per processed pair, in dataset order (`ComparisonResult::$index`
+     * is the 1-based input position).
+     *
+     * Fewer rows than pairs come back on the free plan, in TEST runs, after the spending limit, after a shutdown and
+     * for duplicate pairs. Use `ResultSet::from($results)->missingIndexes(count($pairs))` or `->unprocessed($pairs)`
+     * to find the pairs without a row. A row with an `error` counts as processed.
      *
      * @param  list<ImagePair>  $pairs  1 to 500 baseline and candidate pairs.
      * @param  float  $similarityThreshold  A pair passes at this SSIM score or higher, 0 to 1.
