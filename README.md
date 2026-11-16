@@ -166,6 +166,15 @@ $client = (new Client(new Config(
 
 When `timeout` expires while waiting, the client aborts the run (best effort, one short request, failures ignored) so it does not keep billing, then throws an `ApiException` with `$runId` set; the message ends with "and was aborted" only if the abort succeeded. Failed runs, rate limits and connection errors never trigger an abort. You can also call `$client->abort($runId)` yourself.
 
+### Run timeout
+
+The run start sends Apify's own time limit for the run as the `timeout` query parameter (seconds), so the platform stops a run once the client has given up instead of letting it run to the Actor's own limit. By default it equals `Config::$timeout`. Override it with `Config::$runTimeout` or per call with `compare(..., runTimeout: 120)` (the call wins). `0` sends nothing and keeps the Actor's own limit; negative values throw an `InvalidArgumentException`. The value is only sent on the run start, never on polling, abort or dataset requests, and is separate from `requestTimeout`.
+
+```php
+$client = (new Client(new Config(timeout: 900, runTimeout: 600)))->setApifyKey($apiToken);
+$results = $client->compare($pairs, runTimeout: 300); // this call only
+```
+
 `Config` also takes `actorId` (default `bite-sized-insights/visual-diff-api`) and `baseUrl`.
 
 ## Retries and Backoff

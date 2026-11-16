@@ -573,3 +573,55 @@ test('compare accepts the documented limits', function () {
 
     expect($history)->toHaveCount(2);
 });
+
+test('the run timeout defaults to the client wait and is sent on the run start only', function () {
+    $history = [];
+    $client = makeClient([runResponse(), jsonResponse(200, [])], $history, new Config(timeout: 420, maxRetries: 0));
+
+    $client->compare([samplePair()]);
+
+    expect($history[0]['request']->getUri()->getQuery())->toBe('timeout=420')
+        ->and($history[1]['request']->getUri()->getQuery())->not->toContain('timeout=420');
+});
+
+test('the run timeout of the Config wins over the client wait', function () {
+    $history = [];
+    $config = new Config(timeout: 420, maxRetries: 0, runTimeout: 120);
+    makeClient([runResponse(), jsonResponse(200, [])], $history, $config)->compare([samplePair()]);
+
+    expect($history[0]['request']->getUri()->getQuery())->toBe('timeout=120');
+});
+
+test('the run timeout of the call wins over the Config', function () {
+    $history = [];
+    $config = new Config(timeout: 420, maxRetries: 0, runTimeout: 120);
+    makeClient([runResponse(), jsonResponse(200, [])], $history, $config)->compare([samplePair()], runTimeout: 60);
+
+    expect($history[0]['request']->getUri()->getQuery())->toBe('timeout=60');
+});
+
+test('a run timeout of 0 sends no timeout and keeps the Actor limit', function () {
+    $history = [];
+    $config = new Config(timeout: 420, maxRetries: 0, runTimeout: 0);
+    makeClient([runResponse(), jsonResponse(200, [])], $history, $config)->compare([samplePair()]);
+
+    expect($history[0]['request']->getUri()->getQuery())->toBe('');
+
+    $history = [];
+    makeClient([runResponse(), jsonResponse(200, [])], $history)->compare([samplePair()], runTimeout: 0);
+
+    expect($history[0]['request']->getUri()->getQuery())->toBe('');
+});
+
+test('a negative run timeout is rejected before any request', function () {
+    $history = [];
+    $client = makeClient([], $history);
+
+    expect(fn () => $client->compare([samplePair()], runTimeout: -1))
+        ->toThrow(InvalidArgumentException::class, 'runTimeout must be 0 or a positive number of seconds, got -1.')
+        ->and($history)->toBeEmpty();
+
+    $client = makeClient([], $history, new Config(maxRetries: 0, runTimeout: -5));
+
+    expect(fn () => $client->compare([samplePair()]))->toThrow(InvalidArgumentException::class, 'runTimeout');
+});

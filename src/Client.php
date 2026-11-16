@@ -81,6 +81,8 @@ final class Client
      * @param  Normalization  $normalize  Optionally ignore colour or contrast differences.
      * @param  list<Region>  $ignoreRegions  Areas in baseline pixels skipped for every pair, max 100.
      * @param  bool  $createDiffImage  Also return a public link to a PNG overlay of the changes.
+     * @param  int|null  $runTimeout  Apify run time limit in seconds for this call: overrides `Config::$runTimeout`
+     *                                (default: `Config::$timeout`); 0 keeps the Actor's own limit.
      * @return list<ComparisonResult>
      *
      * @throws InvalidArgumentException When an argument violates the Actor's input limits, before any request.
@@ -97,7 +99,16 @@ final class Client
         Normalization $normalize = Normalization::None,
         array $ignoreRegions = [],
         bool $createDiffImage = true,
+        ?int $runTimeout = null,
     ): array {
+        $runTimeout ??= $this->config->runTimeout;
+
+        if ($runTimeout !== null && $runTimeout < 0) {
+            throw new InvalidArgumentException(
+                "runTimeout must be 0 or a positive number of seconds, got {$runTimeout}."
+            );
+        }
+
         $this->validate($pairs, $similarityThreshold, $maxDiffPercent, $pixelTolerance, $maxDimension, $ignoreRegions);
 
         $input = [
@@ -118,7 +129,7 @@ final class Client
             $input['ignoreRegions'] = array_map(static fn (Region $r): array => $r->toArray(), $ignoreRegions);
         }
 
-        $run = $this->startRun($input);
+        $run = $this->startRun($input, $runTimeout ?? $this->config->timeout);
         $run = $this->awaitRun($run);
 
         return $this->fetchResults($this->datasetId($run));
@@ -257,10 +268,16 @@ final class Client
      * @param  array<string, mixed>  $input
      * @return array<mixed>
      */
-    private function startRun(array $input): array
+    private function startRun(array $input, int $runTimeout): array
     {
         $actor = str_replace('/', '~', $this->config->actorId);
-        $result = $this->request('POST', "/acts/{$actor}/runs", ['json' => $input]);
+        $options = ['json' => $input];
+
+        if ($runTimeout > 0) {
+            $options['query'] = ['timeout' => $runTimeout];
+        }
+
+        $result = $this->request('POST', "/acts/{$actor}/runs", $options);
 
         return $this->runData($result);
     }
