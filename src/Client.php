@@ -16,6 +16,7 @@ use ImageComparison\DTO\Region;
 use ImageComparison\Exception\ApiException;
 use ImageComparison\Exception\MissingApiKeyException;
 use ImageComparison\Exception\RateLimitException;
+use ImageComparison\Exception\SpendingLimitException;
 use InvalidArgumentException;
 use JsonException;
 use Throwable;
@@ -88,6 +89,7 @@ final class Client
      * @throws InvalidArgumentException When an argument violates the Actor's input limits, before any request.
      * @throws ApiException
      * @throws RateLimitException
+     * @throws SpendingLimitException
      */
     public function compare(
         array $pairs,
@@ -233,6 +235,7 @@ final class Client
      *
      * @throws ApiException
      * @throws RateLimitException
+     * @throws SpendingLimitException
      * @throws MissingApiKeyException
      */
     public function abort(string $runId): void
@@ -431,12 +434,14 @@ final class Client
      * Sends a request and retries what is safe to repeat: rate limits (429, the request was not processed), server
      * errors (5xx) and connection failures. Starting a run (POST) is only repeated after a 429 or a failed
      * connection, because after a 5xx or a timeout the run may already exist and a repeat would bill it twice.
+     * A 402 (usage or spending limit) is never retried.
      *
      * @param  array<string, mixed>  $options
      * @return array<mixed>
      *
      * @throws ApiException
      * @throws RateLimitException
+     * @throws SpendingLimitException
      */
     private function request(string $method, string $path, array $options = []): array
     {
@@ -537,10 +542,62 @@ final class Client
             throw new RateLimitException('Rate limit exceeded', $retryAfter);
         }
 
+        if ($response->getStatusCode() === 402) {
+            [$type, $apiMessage] = $this->apiError($e);
+
+            throw new SpendingLimitException(
+                'Apify usage or spending limit reached (HTTP 402)'.($apiMessage === null ? '' : ': '.$apiMessage),
+                402,
+                $e,
+                null,
+                null,
+                $type,
+            );
+        }
+
         throw new ApiException(
             "API request failed with status {$response->getStatusCode()}: ".$e->getMessage(),
             $response->getStatusCode(),
             $e,
         );
+    }
+
+    /**
+     * The Apify error `type` and `message` of an error response, each without control characters and capped at
+     * 500 characters; null when the body is not the expected JSON.
+     *
+     * @return array{0: ?string, 1: ?string}
+     */
+    private function apiError(BadResponseException $e): array
+    {
+        $body = $e->getResponse()->getBody();
+
+        try {
+            if ($body->isSeekable()) {
+                $body->rewind();
+            }
+
+            $decoded = json_decode($body->getContents(), true, 512, JSON_THROW_ON_ERROR);
+        } catch (Throwable) {
+            return [null, null];
+        }
+
+        $error = is_array($decoded) ? ($decoded['error'] ?? null) : null;
+
+        if (! is_array($error)) {
+            return [null, null];
+        }
+
+        $clean = function (mixed $value): ?string {
+            if (! is_string($value)) {
+                return null;
+            }
+
+            $value = trim((string) preg_replace('/[\x00-\x1F\x7F]+/u', ' ', $value));
+
+            return $value === '' ? null : $this->shorten($value, 500);
+        };
+
+        return [$clean($error['type'] ?? null), $clean($error['message'] ?? null)];
     }
 }

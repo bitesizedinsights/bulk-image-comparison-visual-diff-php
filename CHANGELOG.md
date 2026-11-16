@@ -11,6 +11,7 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Added
 
+- `SpendingLimitException` (extends `ApiException`, code 402, `?string $errorType` with the Apify error type) is thrown on HTTP 402 (monthly usage or spending limit reached) instead of a generic `ApiException`. It is never retried.
 - `ApiException::$statusMessage` (`?string`, capped at 2000 characters) carries the run's own status message on failed runs and client-side timeouts; `$runId` is now also set on failed runs.
 - `Config::$runTimeout` (`?int` seconds; null = `Config::$timeout`, 0 = send nothing) and a `runTimeout` argument on `Client::compare()` (wins over the Config) control the Apify run time limit. Negative values throw an `InvalidArgumentException`.
 

@@ -197,6 +197,7 @@ $client = (new Client(new Config(maxRetries: 5, retryBaseDelay: 2.0, retryMaxDel
 - `ImageComparison\Exception\ApiException` covers failed runs, HTTP errors, invalid responses and a run that exceeds `Config::$timeout` (the run is aborted and `$runId` is set).
 - For a FAILED, ABORTED or TIMED-OUT run the message is `Actor run ended with status FAILED: <statusMessage>` when the run reports a non-empty `statusMessage` (the Actor's own reason), otherwise just `Actor run ended with status FAILED`. In the message the text has control characters stripped and is capped at 500 characters. Read `$e->statusMessage` (`?string`, capped at 2000 characters, null when unknown) and `$e->runId` (`?string`) to log or branch on the reason; both are also set on a client-side timeout (`statusMessage` is then the last progress message of the run).
 - `ImageComparison\Exception\RateLimitException` (extends `ApiException`) is thrown on HTTP 429 once the retries are used up (or at once when `Retry-After` exceeds `retryMaxDelay`) and exposes `$retryAfter` in seconds.
+- `ImageComparison\Exception\SpendingLimitException` (extends `ApiException`) is thrown on HTTP 402 (the Apify monthly usage or spending limit is reached). It is never retried, has code `402`, carries the API's message (control characters stripped, capped at 500 characters) and exposes the Apify error type as `$errorType` (`?string`, null when the response body is not readable). Catch it before `ApiException`.
 
 ```php
 try {
@@ -204,6 +205,9 @@ try {
 } catch (RateLimitException $e) {
     // Automatic retries are already used up: wait, then try again later.
     sleep($e->retryAfter);
+} catch (SpendingLimitException $e) {
+    // Usage or spending limit reached: retrying will not help, raise the limit on Apify.
+    echo $e->errorType;
 } catch (ApiException $e) {
     echo $e->getMessage();
 }

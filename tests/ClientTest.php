@@ -14,6 +14,7 @@ use ImageComparison\DTO\Region;
 use ImageComparison\Exception\ApiException;
 use ImageComparison\Exception\MissingApiKeyException;
 use ImageComparison\Exception\RateLimitException;
+use ImageComparison\Exception\SpendingLimitException;
 use ImageComparison\Normalization;
 use ImageComparison\ResizeMode;
 use Psr\Http\Message\RequestInterface;
@@ -690,4 +691,82 @@ test('a negative run timeout is rejected before any request', function () {
     $client = makeClient([], $history, new Config(maxRetries: 0, runTimeout: -5));
 
     expect(fn () => $client->compare([samplePair()]))->toThrow(InvalidArgumentException::class, 'runTimeout');
+});
+
+function spendingBody(): array
+{
+    return ['error' => ['type' => 'not-enough-usage-to-run-paid-actor', 'message' => "Monthly limit\x01 reached"]];
+}
+
+test('402 on run start maps to SpendingLimitException and is not retried', function () {
+    $history = [];
+    $client = makeClient([jsonResponse(402, spendingBody()), runResponse()], $history, new Config(maxRetries: 3));
+
+    try {
+        $client->compare([samplePair()]);
+        $this->fail('Expected SpendingLimitException');
+    } catch (SpendingLimitException $e) {
+        expect($e)->toBeInstanceOf(ApiException::class)
+            ->and($e->getCode())->toBe(402)
+            ->and($e->errorType)->toBe('not-enough-usage-to-run-paid-actor')
+            ->and($e->getMessage())->toContain('Monthly limit  reached')
+            ->and($e->getMessage())->not->toContain("\x01")
+            ->and($history)->toHaveCount(1);
+    }
+});
+
+test('402 while polling maps to SpendingLimitException', function () {
+    $history = [];
+    $client = makeClient(
+        [runResponse('RUNNING'), jsonResponse(402, spendingBody()), runResponse()],
+        $history,
+        new Config(maxRetries: 3),
+    );
+
+    try {
+        $client->compare([samplePair()]);
+        $this->fail('Expected SpendingLimitException');
+    } catch (SpendingLimitException $e) {
+        expect($e->getCode())->toBe(402)
+            ->and($e->errorType)->toBe('not-enough-usage-to-run-paid-actor')
+            ->and($history)->toHaveCount(2);
+    }
+});
+
+test('402 on the dataset fetch maps to SpendingLimitException', function () {
+    $history = [];
+    $client = makeClient([runResponse(), jsonResponse(402, spendingBody()), jsonResponse(200, [])], $history);
+
+    expect(fn () => $client->compare([samplePair()]))->toThrow(SpendingLimitException::class)
+        ->and($history)->toHaveCount(2);
+});
+
+test('402 on abort maps to SpendingLimitException', function () {
+    $client = makeClient([jsonResponse(402, spendingBody())]);
+
+    expect(fn () => $client->abort('run1'))->toThrow(SpendingLimitException::class);
+});
+
+test('402 with an unparseable body has no errorType and a generic message', function () {
+    $client = makeClient([new Response(402, [], 'not json')]);
+
+    try {
+        $client->compare([samplePair()]);
+        $this->fail('Expected SpendingLimitException');
+    } catch (SpendingLimitException $e) {
+        expect($e->errorType)->toBeNull()
+            ->and($e->getCode())->toBe(402)
+            ->and($e->getMessage())->toBe('Apify usage or spending limit reached (HTTP 402)');
+    }
+});
+
+test('402 message parts are capped at 500 characters', function () {
+    $client = makeClient([jsonResponse(402, ['error' => ['type' => 't', 'message' => str_repeat('x', 900)]])]);
+
+    try {
+        $client->compare([samplePair()]);
+        $this->fail('Expected SpendingLimitException');
+    } catch (SpendingLimitException $e) {
+        expect(mb_strlen($e->getMessage()))->toBeLessThan(600);
+    }
 });
